@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import requests
+from transformers import pipeline
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -9,9 +9,8 @@ load_dotenv()
 
 app = FastAPI()
 
-# Hugging Face API settings
-HF_API_TOKEN = os.getenv("HF_API_TOKEN")  # Set this in .env file
-HF_API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-1B-Instruct"
+# Initialize local model
+generator = pipeline("text-generation", model="distilgpt2", device=-1)  # CPU
 
 # Request model
 class ChatRequest(BaseModel):
@@ -20,30 +19,17 @@ class ChatRequest(BaseModel):
 # Chat endpoint
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    if not HF_API_TOKEN:
-        raise HTTPException(status_code=500, detail="Hugging Face API token not set")
-
-    headers = {
-        "Authorization": f"Bearer {HF_API_TOKEN}",
-        "Content-Type": "application/json",
-    }
-
-    payload = {
-        "inputs": request.message,
-        "parameters": {
-            "max_new_tokens": 150,
-            "temperature": 0.7,
-            "return_full_text": False,
-        },
-    }
-
     try:
-        response = requests.post(HF_API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        result = response.json()
-        return {"response": result[0]["generated_text"]}
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Error calling Hugging Face API: {str(e)}")
+        # Add system prompt
+        system_prompt = (
+            "You are a friendly and helpful chatbot. Respond to user messages in a conversational, concise, and relevant manner. "
+            "If the user says something short like 'hi', greet them back warmly and ask how you can assist."
+        )
+        full_input = f"{system_prompt}\nUser: {request.message}\nAssistant:"
+        result = generator(full_input, max_new_tokens=150, temperature=0.7, return_full_text=False)
+        return {"response": result[0]["generated_text"].strip()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating response: {str(e)}")
 
 # Health check endpoint
 @app.get("/health")
