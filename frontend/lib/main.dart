@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 void main() {
   runApp(const AIChatApp());
@@ -38,13 +39,21 @@ class _ChatScreenState extends State<ChatScreen> {
   // Your FastAPI backend URL (local or hosted)
   static const String _apiUrl = 'http://localhost:8000/chat'; // Update if hosted
 
+  // Compose conversation history for context
+  List<String> get _history => _messages
+      .map((msg) => msg.isUser ? 'User: ${msg.text}' : 'Assistant: ${msg.text}')
+      .toList();
+
   // Call your custom FastAPI backend
   Future<String> _getAIResponse(String userInput) async {
     try {
       final response = await http.post(
         Uri.parse(_apiUrl),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'message': userInput}),
+        body: jsonEncode({
+          'message': userInput,
+          'history': _history,
+        }),
       );
 
       if (response.statusCode == 200) {
@@ -186,13 +195,20 @@ class MessageBubble extends StatelessWidget {
           color: isUser ? Colors.blue[400] : Colors.grey[300],
           borderRadius: BorderRadius.circular(12.0),
         ),
-        child: Text(
-          text,
-          style: TextStyle(
-            color: isUser ? Colors.white : Colors.black87,
-            fontSize: 16.0,
-          ),
-        ),
+        child: isUser
+            ? Text(
+                text,
+                style: const TextStyle(color: Colors.white, fontSize: 16.0),
+              )
+            : MarkdownBody(
+                data: text,
+                styleSheet: MarkdownStyleSheet(
+                  p: const TextStyle(fontSize: 16.0, color: Colors.black87),
+                  code: TextStyle(
+                      backgroundColor: Colors.grey[200],
+                      fontFamily: 'monospace'),
+                ),
+              ),
       ),
     );
   }

@@ -1,4 +1,7 @@
 fastapi==0.115.0
 uvicorn==0.30.6
-requests==2.32.3
 python-dotenv==1.0.1
+pydantic==2.8.2
+transformers==4.44.0
+torch==2.4.1  # CPU version; for GPU: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+accelerate==0.33.0
